@@ -11,7 +11,7 @@ import { Disposable, DisposableStore, IDisposable, IReference } from '../../../.
 import { parse } from '../../../../base/common/marshalling.js';
 import { Schemas } from '../../../../base/common/network.js';
 import { deepClone } from '../../../../base/common/objects.js';
-import { ObservableLazyPromise, ValueWithChangeEventFromObservable, autorun, constObservable, derived, mapObservableArrayCached, observableFromEvent, observableFromValueWithChangeEvent, observableValue, recomputeInitiallyAndOnChange } from '../../../../base/common/observable.js';
+import { ObservableLazyPromise, ValueWithChangeEventFromObservable, autorun, constObservable, derived, derivedWithCancellationToken, mapObservableArrayCached, observableFromEvent, observableFromValueWithChangeEvent, observableValue, recomputeInitiallyAndOnChange } from '../../../../base/common/observable.js';
 import { ThemeIcon } from '../../../../base/common/themables.js';
 import { isDefined, isObject } from '../../../../base/common/types.js';
 import { URI } from '../../../../base/common/uri.js';
@@ -270,10 +270,13 @@ export class MultiDiffEditorInput extends EditorInput implements ILanguageSuppor
 
 		const documents = observableValue<readonly RefCounted<IDocumentDiffItem>[] | 'loading'>('documents', 'loading');
 
-		const updateDocuments = derived(async reader => {
+		const updateDocuments = derivedWithCancellationToken(async (reader, token) => {
 			/** @description Update documents */
 			const docsPromises = documentsWithPromises.read(reader);
 			const docs = await Promise.all(docsPromises);
+			if (token.isCancellationRequested) {
+				return;
+			}
 			const newDocuments = docs.filter(isDefined);
 			documents.set(newDocuments, undefined);
 		});
